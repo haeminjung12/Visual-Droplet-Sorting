@@ -1,0 +1,43 @@
+# Build artifacts
+build/
+build_vs18/
+out/
+*.obj
+*.pdb
+*.lib
+*.exp
+*.exe
+*.dll
+*.tlog
+*.ilk
+*.log
+*.user
+*.suo
+*.vcxproj.user
+*.vcxproj.filters
+*.vcxproj
+*.vcxproj.*
+*.sln
+*.ninja
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+
+# IDE
+.vs/
+.vscode/
+
+# Logs
+session_log.txt
+*.dmp
+crash_*.dmp
+
+# Data / outputs
+pipeline_output/
+output_sequence_detection/
+*.tif
+*.tiff
+*.png
+*.jpg
+*.jpeg
+*.bmp
