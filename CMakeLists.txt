@@ -18,7 +18,14 @@ set(NIDAQMX_DIR "" CACHE PATH "Path to NI-DAQmx (optional)")
 
 option(ENABLE_NIDAQMX "Enable NI-DAQmx trigger support" ON)
 option(BUILD_QT_GUI "Build Qt GUI app" ON)
-option(BUILD_CLI "Build headless CLI app" ON)
+option(BUILD_CLI "Build headless CLI app" OFF)
+
+if (BUILD_QT_GUI AND BUILD_CLI)
+  message(FATAL_ERROR "Only one executable can be built at a time. Set either BUILD_QT_GUI=ON BUILD_CLI=OFF (GUI) or BUILD_QT_GUI=OFF BUILD_CLI=ON (CLI).")
+endif()
+if (NOT BUILD_QT_GUI AND NOT BUILD_CLI)
+  message(FATAL_ERROR "No executable selected. Set either BUILD_QT_GUI=ON BUILD_CLI=OFF (GUI) or BUILD_QT_GUI=OFF BUILD_CLI=ON (CLI).")
+endif()
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 
