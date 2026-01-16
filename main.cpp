@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -165,6 +166,8 @@ void printUsage() {
         "  --daq-counter <ctr>           Counter line (default: ctr0)\n"
         "  --pulse-high-ms <ms>          Trigger high time (default: 5)\n"
         "  --pulse-low-ms <ms>           Trigger low time (default: 5)\n"
+        "  --daq-test-pulses <n>         Fire n DAQ pulses then exit\n"
+        "  --daq-test-interval-ms <ms>   Delay between test pulses (default: 50)\n"
         "  --output-dir <dir>            Save event crops/overlays\n"
         "  --save-overlay                Save overlay image with bbox/mask\n"
         "  --continuous                  Do not stop after first event\n"
@@ -217,6 +220,45 @@ int main(int argc, char** argv) {
     Args args = parseArgs(argc, argv);
     if (hasFlag(args, "--help")) {
         printUsage();
+        return 0;
+    }
+
+    int daqTestPulses = getInt(args, "--daq-test-pulses", 0);
+    if (daqTestPulses > 0) {
+        DaqTrigger trigger;
+        DaqConfig daq;
+        daq.mode = parseTriggerMode(getString(args, "--trigger-mode", "digital"));
+        daq.device = getString(args, "--daq-device", "Dev1");
+        daq.line = getString(args, "--daq-line", "port0/line0");
+        daq.counter = getString(args, "--daq-counter", "ctr0");
+        daq.pulseHighMs = getDouble(args, "--pulse-high-ms", 5.0);
+        daq.pulseLowMs = getDouble(args, "--pulse-low-ms", 5.0);
+
+        std::string err;
+        if (daq.mode != TriggerMode::None) {
+            if (!trigger.init(daq, err)) {
+                std::cerr << "DAQ init error: " << err << "\n";
+                return 1;
+            }
+        }
+
+        int intervalMs = std::max(0, getInt(args, "--daq-test-interval-ms", 50));
+        for (int i = 0; i < daqTestPulses; ++i) {
+            if (daq.mode != TriggerMode::None) {
+                std::string trigErr;
+                if (!trigger.fire(trigErr)) {
+                    std::cerr << "DAQ test failed on pulse " << (i + 1) << ": " << trigErr << "\n";
+                    trigger.shutdown();
+                    return 1;
+                }
+            }
+            if (intervalMs > 0 && i + 1 < daqTestPulses) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+            }
+        }
+
+        trigger.shutdown();
+        std::cout << "DAQ test OK (" << daqTestPulses << " pulses)\n";
         return 0;
     }
 

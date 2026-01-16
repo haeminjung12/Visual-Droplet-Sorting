@@ -1,7 +1,18 @@
 #pragma once
 #include <QtCore>
+
+#if HAVE_DCAM
 #include <dcamprop.h>
 #include <dcamapi4.h>
+#else
+using DCAMERR = int;
+using HDCAM = void*;
+using HDCAMWAIT = void*;
+constexpr int DCAM_PIXELTYPE_MONO8 = 0;
+constexpr int DCAM_PIXELTYPE_MONO16 = 1;
+constexpr int DCAMPROP_READOUTSPEED__FASTEST = 0;
+constexpr int DCAMPROP_READOUTSPEED__SLOWEST = 1;
+#endif
 
 struct ApplySettings {
     int width = 0;

@@ -34,9 +34,11 @@ DaqTrigger::~DaqTrigger() {
 }
 
 bool DaqTrigger::init(const DaqConfig& cfg, std::string& err) {
+    shutdown();
+
+    std::lock_guard<std::mutex> lock(mu_);
     cfg_ = cfg;
     ready_ = false;
-    shutdown();
 
     if (cfg_.mode == TriggerMode::None) {
         ready_ = true;
@@ -55,12 +57,6 @@ bool DaqTrigger::init(const DaqConfig& cfg, std::string& err) {
         error = DAQmxCreateDOChan(task, chan.c_str(), "", DAQmx_Val_ChanPerLine);
         if (DAQmxFailed(error)) {
             err = formatDaqError("DAQmxCreateDOChan failed", error);
-            DAQmxClearTask(task);
-            return false;
-        }
-        error = DAQmxStartTask(task);
-        if (DAQmxFailed(error)) {
-            err = formatDaqError("DAQmxStartTask failed", error);
             DAQmxClearTask(task);
             return false;
         }
@@ -99,6 +95,7 @@ bool DaqTrigger::init(const DaqConfig& cfg, std::string& err) {
 }
 
 void DaqTrigger::shutdown() {
+    std::lock_guard<std::mutex> lock(mu_);
 #ifdef HAVE_NIDAQMX
     if (task_) {
         TaskHandle task = static_cast<TaskHandle>(task_);
@@ -111,6 +108,7 @@ void DaqTrigger::shutdown() {
 }
 
 bool DaqTrigger::fire(std::string& err) {
+    std::lock_guard<std::mutex> lock(mu_);
     if (!ready_) {
         err = "DAQ trigger not initialized";
         return false;
@@ -120,25 +118,36 @@ bool DaqTrigger::fire(std::string& err) {
 #ifdef HAVE_NIDAQMX
     TaskHandle task = static_cast<TaskHandle>(task_);
     if (cfg_.mode == TriggerMode::Digital) {
+        DAQmxStopTask(task);
+        int32 error = DAQmxStartTask(task);
+        if (DAQmxFailed(error)) {
+            err = formatDaqError("DAQmxStartTask failed", error);
+            return false;
+        }
+
         uInt8 data[1];
         int32 written = 0;
         data[0] = 1;
-        int32 error = DAQmxWriteDigitalLines(task, 1, 1, 1.0, DAQmx_Val_GroupByChannel, data, &written, nullptr);
+        error = DAQmxWriteDigitalLines(task, 1, 0, 1.0, DAQmx_Val_GroupByChannel, data, &written, nullptr);
         if (DAQmxFailed(error)) {
             err = formatDaqError("DAQmxWriteDigitalLines high failed", error);
+            DAQmxStopTask(task);
             return false;
         }
         std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(cfg_.pulseHighMs));
         data[0] = 0;
-        error = DAQmxWriteDigitalLines(task, 1, 1, 1.0, DAQmx_Val_GroupByChannel, data, &written, nullptr);
+        error = DAQmxWriteDigitalLines(task, 1, 0, 1.0, DAQmx_Val_GroupByChannel, data, &written, nullptr);
         if (DAQmxFailed(error)) {
             err = formatDaqError("DAQmxWriteDigitalLines low failed", error);
+            DAQmxStopTask(task);
             return false;
         }
+        DAQmxStopTask(task);
         return true;
     }
 
     if (cfg_.mode == TriggerMode::Counter) {
+        DAQmxStopTask(task);
         int32 error = DAQmxStartTask(task);
         if (DAQmxFailed(error)) {
             err = formatDaqError("DAQmxStartTask failed", error);

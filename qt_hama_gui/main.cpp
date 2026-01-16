@@ -1368,6 +1368,7 @@ int main(int argc, char *argv[]) {
 
     auto refreshExposureLimits = [&](){
         if (!controller.isOpened()) return;
+#if HAVE_DCAM
         DCAMPROP_ATTR attr = {};
         attr.cbSize = sizeof(attr);
         attr.iProp = DCAM_IDPROP_EXPOSURETIME;
@@ -1381,6 +1382,7 @@ int main(int argc, char *argv[]) {
         if (!failed(dcamprop_getvalue(controller.handle(), DCAM_IDPROP_EXPOSURETIME, &cur))) {
             exposureSpin->setValue(cur * 1000.0);
         }
+#endif
     };
 
     QObject::connect(presetCombo, qOverload<int>(&QComboBox::currentIndexChanged), [&](int){
@@ -1420,6 +1422,7 @@ int main(int argc, char *argv[]) {
         QString err = controller.apply(s);
         auto logReadback = [&](){
             if (!controller.isOpened()) return;
+#if HAVE_DCAM
             HDCAM h = controller.handle();
             double w=0,hgt=0,binrb=0,bitsrb=0,pt=0,fps=0,ro=0,exp_rb=0,binHrb=0,binVrb=0;
             dcamprop_getvalue(h, DCAM_IDPROP_IMAGE_WIDTH, &w);
@@ -1437,6 +1440,7 @@ int main(int argc, char *argv[]) {
                 .arg(binHrb,0,'f',1).arg(binVrb,0,'f',1)
                 .arg(bitsrb,0,'f',0).arg(pt,0,'f',0)
                 .arg(exp_rb*1000.0,0,'f',3).arg(fps,0,'f',1).arg(ro,0,'f',0));
+#endif
         };
         if (!err.isEmpty()) {
             if (err.startsWith("WARN:")) {
@@ -1489,13 +1493,17 @@ int main(int argc, char *argv[]) {
             statusLabel->setText("Initialized.");
             refreshExposureLimits();
             // Force default exposure to 10 ms on camera and UI
+#if HAVE_DCAM
             dcamprop_setvalue(controller.handle(), DCAM_IDPROP_EXPOSURETIME, 0.010);
+#endif
             exposureSpin->setValue(10.0);
             // Apply selected bits/pixel type on init
             int bits = bitsCombo->currentText().toInt();
             int pixel = (bits > 8) ? DCAM_PIXELTYPE_MONO16 : DCAM_PIXELTYPE_MONO8;
+#if HAVE_DCAM
             dcamprop_setvalue(controller.handle(), DCAM_IDPROP_IMAGE_PIXELTYPE, pixel);
             dcamprop_setvalue(controller.handle(), DCAM_IDPROP_BITSPERCHANNEL, bits);
+#endif
             logLine("Init success");
             return true;
         }
@@ -1512,12 +1520,14 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(startBtn, &QPushButton::clicked, [&](){
         if (viewerOnly) return;
+#if HAVE_DCAM
         if (controller.isOpened()) {
             int bits = bitsCombo->currentText().toInt();
             int pixel = (bits > 8) ? DCAM_PIXELTYPE_MONO16 : DCAM_PIXELTYPE_MONO8;
             dcamprop_setvalue(controller.handle(), DCAM_IDPROP_IMAGE_PIXELTYPE, pixel);
             dcamprop_setvalue(controller.handle(), DCAM_IDPROP_BITSPERCHANNEL, bits);
         }
+#endif
         QString err = controller.start();
         if (!err.isEmpty()) statusLabel->setText("Start error: " + err);
         else {

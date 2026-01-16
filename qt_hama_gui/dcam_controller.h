@@ -1,9 +1,13 @@
 #pragma once
 #include <QtCore>
+#include <QtGui/QImage>
 #include <atomic>
+#include "frame_types.h"
+
+#if HAVE_DCAM
 #include <dcamapi4.h>
 #include <dcamprop.h>
-#include "frame_types.h"
+#endif
 
 class DcamController : public QObject {
     Q_OBJECT
