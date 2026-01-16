@@ -149,7 +149,8 @@ Build (PowerShell)
    - ONNX Runtime: -D ONNXRUNTIME_DIR="C:/onnxruntime-gpu"
    - NI‑DAQmx: -D NIDAQMX_DIR="C:/Program Files (x86)/National Instruments/NI-DAQ/DAQmx ANSI C Dev"
 
-2) Configure and build:
+2) Configure and build (builds exactly one .exe):
+   - Default: GUI (`droplet_pipeline.exe`)
    cmake -S . -B build ^
      -D ONNXRUNTIME_DIR="C:/onnxruntime-gpu" ^
      -D DCAM_SDK_DIR="C:/path/to/dcamsdk4" ^
@@ -160,6 +161,7 @@ Run
 - GUI:
   build/qt_hama_gui/Release/droplet_pipeline.exe
 - CLI (example):
+  (configure with `-D BUILD_QT_GUI=OFF -D BUILD_CLI=ON`)
   build/Release/droplet_pipeline_cli.exe ^
     --onnx "C:/path/to/squeezenet_final_new_condition.onnx" ^
     --metadata "C:/path/to/metadata.json" ^
