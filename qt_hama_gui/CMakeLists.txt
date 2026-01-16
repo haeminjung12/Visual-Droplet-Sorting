@@ -20,6 +20,7 @@ set(DCAM_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../python_pipeline/Hamamatsu_DC
 set(ONNXRUNTIME_DIR "" CACHE PATH "Path to ONNX Runtime")
 set(NIDAQMX_DIR "" CACHE PATH "Path to NI-DAQmx (optional)")
 option(ENABLE_NIDAQMX "Enable NI-DAQmx trigger support" ON)
+option(ENABLE_DCAM "Enable Hamamatsu DCAM camera support" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
@@ -65,11 +66,39 @@ if (NOT ONNXRUNTIME_INCLUDE_DIR OR NOT ONNXRUNTIME_LIB)
   message(FATAL_ERROR "ONNX Runtime not found. Set ONNXRUNTIME_DIR to a valid install path.")
 endif()
 
+set(GUI_CAMERA_SOURCES
+  dcam_controller_stub.cpp
+  frame_grabber_stub.cpp
+)
+set(DCAM_FOUND OFF)
+if (ENABLE_DCAM)
+  find_path(DCAM_INCLUDE_DIR_FOUND dcamapi4.h
+    PATHS
+      "${DCAM_SDK_DIR}/inc"
+    NO_DEFAULT_PATH
+  )
+  find_library(DCAM_LIBRARY NAMES dcamapi
+    PATHS
+      "${DCAM_SDK_DIR}/lib/win64"
+    NO_DEFAULT_PATH
+  )
+  if (DCAM_INCLUDE_DIR_FOUND AND DCAM_LIBRARY)
+    set(GUI_CAMERA_SOURCES
+      dcam_controller.cpp
+      frame_grabber.cpp
+    )
+    set(DCAM_FOUND ON)
+  endif()
+endif()
+
 add_executable(qt_hama_gui
   main.cpp
-  dcam_controller.cpp
-  frame_grabber.cpp
+  dcam_controller.h
+  frame_grabber.h
+  frame_types.h
+  ${GUI_CAMERA_SOURCES}
   pipeline_runner.cpp
+  pipeline_runner.h
   ../daq_trigger.cpp
   ../fast_event_detector.cpp
   ../metadata_loader.cpp
@@ -92,21 +121,24 @@ set_target_properties(qt_hama_gui PROPERTIES
 target_include_directories(qt_hama_gui PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${DCAM_SDK_DIR}/inc
   ${ONNXRUNTIME_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
 )
 
-target_link_directories(qt_hama_gui PRIVATE
-  ${DCAM_SDK_DIR}/lib/win64
-)
-
 target_link_libraries(qt_hama_gui PRIVATE
   Qt6::Widgets
-  dcamapi
   ${ONNXRUNTIME_LIB}
   ${OpenCV_LIBS}
 )
+
+if (DCAM_FOUND)
+  target_compile_definitions(qt_hama_gui PRIVATE HAVE_DCAM=1)
+  target_include_directories(qt_hama_gui PRIVATE ${DCAM_INCLUDE_DIR_FOUND})
+  target_link_libraries(qt_hama_gui PRIVATE ${DCAM_LIBRARY})
+else()
+  target_compile_definitions(qt_hama_gui PRIVATE HAVE_DCAM=0)
+  message(WARNING "DCAM SDK not found; building GUI without camera support.")
+endif()
 
 if (ONNXRUNTIME_DIR)
   set(ONNX_DLLS
