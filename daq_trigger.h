@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <string>
 
 enum class TriggerMode {
@@ -30,6 +31,7 @@ public:
 private:
     DaqConfig cfg_;
     bool ready_;
+    mutable std::mutex mu_;
 
 #ifdef HAVE_NIDAQMX
     void* task_;
